@@ -199,6 +199,13 @@ function renderTeacherSetup() {
           <h3>รายการประมูล</h3>
           <button type="button" class="ghost" data-action="add-item">เพิ่มรายการ</button>
         </div>
+        <div class="item-row item-head" aria-hidden="true">
+          <span>รายการอนาคต</span>
+          <span>หมวด</span>
+          <span>ผู้ชนะ</span>
+          <span>เริ่ม bid</span>
+          <span></span>
+        </div>
         <div id="itemsRows"></div>
       </div>
 
@@ -218,8 +225,8 @@ function itemRow(item = {}, index = 0) {
     <div class="item-row">
       <input class="item-title" placeholder="อนาคตที่อยากประมูล" value="${escapeText(item.title || "")}">
       <input class="item-category" placeholder="หมวด" value="${escapeText(item.category || "อนาคต")}">
-      <input class="item-slots" type="number" min="1" value="${item.slots || 1}" title="จำนวนผู้ชนะ">
-      <input class="item-price" type="number" min="1" value="${item.startPrice || 5}" title="ราคาเริ่ม">
+      <input class="item-slots" type="number" min="1" value="${item.slots || 1}" title="จำนวนผู้ชนะ" aria-label="จำนวนผู้ชนะ">
+      <input class="item-price" type="number" min="1" value="${item.startPrice || 5}" title="ราคาเริ่มต้น" aria-label="ราคาเริ่มต้น">
       <button type="button" class="mini danger" data-remove="${index}">ลบ</button>
     </div>
   `;

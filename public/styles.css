@@ -268,6 +268,17 @@ select {
   margin-bottom: 8px;
 }
 
+.item-head {
+  margin-bottom: 6px;
+  color: rgba(29, 23, 16, 0.68);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.item-head span {
+  padding: 0 4px;
+}
+
 .primary,
 .ghost,
 .mini {
@@ -534,6 +545,10 @@ select {
 
   .item-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .item-head {
+    display: none;
   }
 }
 
