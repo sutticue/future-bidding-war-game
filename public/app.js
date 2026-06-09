@@ -233,7 +233,7 @@ function itemRow(item = {}, index = 0) {
 }
 
 function collectItems() {
-  return [...document.querySelectorAll(".item-row")]
+  return [...document.querySelectorAll("#itemsRows .item-row")]
     .map(row => ({
       title: row.querySelector(".item-title").value.trim(),
       category: row.querySelector(".item-category").value.trim() || "อนาคต",
