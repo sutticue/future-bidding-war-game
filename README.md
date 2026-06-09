@@ -57,6 +57,8 @@ UPSTASH_REDIS_REST_TOKEN=...
 
 บน Vercel แอพจะใช้ API ใน `api/[...path].js` และเก็บ state ห้องไว้ใน Redis 12 ชั่วโมงต่อห้อง หน้าเว็บใช้ polling ประมาณทุก 1.2 วินาทีเพื่อให้ทำงานได้บน serverless
 
+หลัง deploy ให้เปิด `/api/health` ของเว็บ เช่น `https://your-app.vercel.app/api/health` ถ้าพร้อมใช้จริงควรเห็น `storage` เป็น `redis` และ `redisOk` เป็น `true` ถ้าเป็น `memory` ห้องอาจหายหรือกระพริบเมื่อ Vercel เปลี่ยน serverless instance
+
 ### ทางเลือก 2: Railway / Render / VPS
 
 เหมาะถ้าอยากง่ายสุดและไม่อยากต่อ Redis ตอนเริ่มต้น

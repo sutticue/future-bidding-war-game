@@ -268,6 +268,28 @@ module.exports = async function handler(req, res) {
       return json(res, 200, { templates });
     }
 
+    if (req.method === "GET" && parts[0] === "health") {
+      const config = redisConfig();
+      let redisOk = false;
+      if (config) {
+        try {
+          redisOk = (await redis("PING")) === "PONG";
+        } catch {
+          redisOk = false;
+        }
+      }
+      return json(res, 200, {
+        storage: config ? "redis" : "memory",
+        redisOk,
+        env: {
+          hasUpstashUrl: Boolean(process.env.UPSTASH_REDIS_REST_URL),
+          hasUpstashToken: Boolean(process.env.UPSTASH_REDIS_REST_TOKEN),
+          hasKvUrl: Boolean(process.env.KV_REST_API_URL),
+          hasKvToken: Boolean(process.env.KV_REST_API_TOKEN)
+        }
+      });
+    }
+
     if (req.method === "POST" && parts[0] === "rooms" && parts.length === 1) {
       const payload = await body(req);
       const code = await roomCode();

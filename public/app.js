@@ -9,6 +9,7 @@ const state = {
   events: null,
   poller: null,
   error: "",
+  pollFailures: 0,
   tick: Date.now()
 };
 
@@ -52,7 +53,8 @@ function connect(code) {
   disconnect();
   pollRoom(code);
   state.poller = setInterval(() => pollRoom(code), 1200);
-  if (!window.EventSource) return;
+  const canUseEvents = window.EventSource && ["localhost", "127.0.0.1"].includes(location.hostname);
+  if (!canUseEvents) return;
   state.events = new EventSource(`/events/${code}`);
   state.events.onmessage = event => {
     state.room = JSON.parse(event.data);
@@ -76,12 +78,14 @@ async function pollRoom(code = state.code) {
   if (!code) return;
   try {
     state.room = await api(`/api/rooms/${code}`);
+    cacheRoom(state.room);
     state.error = "";
+    state.pollFailures = 0;
     render();
   } catch (error) {
-    if (state.room?.code === code && error.status === 404) {
-      state.error = "กำลังเชื่อมต่อห้องใหม่อีกครั้ง";
-      render();
+    if (state.room?.code === code) {
+      state.pollFailures += 1;
+      state.error = "";
       return;
     }
     state.error = error.message;
@@ -98,6 +102,20 @@ function updateUrl(role, code) {
 
 function player() {
   return state.room?.players.find(item => item.id === state.playerId);
+}
+
+function cacheRoom(room) {
+  if (!room?.code) return;
+  localStorage.setItem(`fbwRoom:${room.code}`, JSON.stringify(room));
+}
+
+function cachedRoom(code) {
+  try {
+    const value = localStorage.getItem(`fbwRoom:${code}`);
+    return value ? JSON.parse(value) : null;
+  } catch {
+    return null;
+  }
 }
 
 function topBids() {
@@ -616,6 +634,7 @@ document.addEventListener("submit", async event => {
         }
       });
       state.room = room;
+      cacheRoom(room);
       state.code = room.code;
       updateUrl("teacher", room.code);
       connect(room.code);
@@ -631,6 +650,7 @@ document.addEventListener("submit", async event => {
       state.playerId = result.playerId;
       localStorage.setItem("fbwPlayerId", result.playerId);
       state.room = result.state;
+      cacheRoom(result.state);
       state.code = code;
       updateUrl("student", code);
       connect(code);
@@ -645,11 +665,14 @@ async function boot() {
   const data = await api("/api/templates");
   state.templates = data.templates;
   if (state.code && state.role) {
+    const cached = cachedRoom(state.code);
+    if (cached) state.room = cached;
     try {
       state.room = await api(`/api/rooms/${state.code}`);
+      cacheRoom(state.room);
       connect(state.code);
     } catch {
-      state.room = null;
+      if (state.room) connect(state.code);
     }
   }
   render();

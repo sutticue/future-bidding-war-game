@@ -246,6 +246,19 @@ async function route(req, res) {
 
   if (url.pathname === "/api/templates") return send(res, 200, { templates });
 
+  if (url.pathname === "/api/health") {
+    return send(res, 200, {
+      storage: "memory",
+      redisOk: false,
+      env: {
+        hasUpstashUrl: Boolean(process.env.UPSTASH_REDIS_REST_URL),
+        hasUpstashToken: Boolean(process.env.UPSTASH_REDIS_REST_TOKEN),
+        hasKvUrl: Boolean(process.env.KV_REST_API_URL),
+        hasKvToken: Boolean(process.env.KV_REST_API_TOKEN)
+      }
+    });
+  }
+
   if (url.pathname === "/api/rooms" && req.method === "POST") {
     const room = makeRoom(await readBody(req));
     return send(res, 200, publicState(room));
