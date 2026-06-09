@@ -9,12 +9,12 @@ const templates = [
     roundSeconds: 30,
     items: [
       { title: "มีเงินเข้าบัญชีแบบงง ๆ ทุกเดือน", category: "เงิน", slots: 1, startPrice: 10 },
-      { title: "กินเท่าไรก็ไม่อ้วน แถมสุขภาพดี", category: "ชีวิต", slots: 2, startPrice: 8 },
+      { title: "กินเท่าไรก็ไม่อ้วน แถมสุขภาพดี", category: "ชีวิต", slots: 1, startPrice: 8 },
       { title: "สอบติดแบบอ่านคืนเดียว แต่ยังจำได้จริง", category: "เรียน", slots: 1, startPrice: 12 },
-      { title: "แม่ไม่บ่นเรื่องห้องรก 1 ปีเต็ม", category: "บ้าน", slots: 3, startPrice: 5 },
-      { title: "พูดอังกฤษคล่องทันทีโดยไม่เขิน", category: "ทักษะ", slots: 2, startPrice: 10 },
+      { title: "แม่ไม่บ่นเรื่องห้องรก 1 ปีเต็ม", category: "บ้าน", slots: 1, startPrice: 5 },
+      { title: "พูดอังกฤษคล่องทันทีโดยไม่เขิน", category: "ทักษะ", slots: 1, startPrice: 10 },
       { title: "ได้เที่ยวฟรีทุกปิดเทอม", category: "ประสบการณ์", slots: 1, startPrice: 10 },
-      { title: "ตื่นมาก็หน้าใส ผมเข้าทรงเอง", category: "ตัวตน", slots: 2, startPrice: 6 },
+      { title: "ตื่นมาก็หน้าใส ผมเข้าทรงเอง", category: "ตัวตน", slots: 1, startPrice: 6 },
       { title: "มีรถขับ แต่ไม่ต้องเติมน้ำมันเอง", category: "สบาย", slots: 1, startPrice: 9 }
     ]
   },
@@ -25,14 +25,14 @@ const templates = [
     startingMoney: 100,
     roundSeconds: 35,
     items: [
-      { title: "มีรักดี ๆ ไม่ต้องเดาใจทุกวัน", category: "รัก", slots: 2, startPrice: 10 },
+      { title: "มีรักดี ๆ ไม่ต้องเดาใจทุกวัน", category: "รัก", slots: 1, startPrice: 10 },
       { title: "มีแฟนฝรั่ง พร้อมฝึกภาษาแบบไม่กดดัน", category: "รัก", slots: 1, startPrice: 8 },
-      { title: "แฟนตอบแชทไว แต่ไม่ตามจิก", category: "รัก", slots: 2, startPrice: 7 },
-      { title: "โสดแบบรวย สบายใจ และนอนเต็มอิ่ม", category: "ตัวตน", slots: 2, startPrice: 10 },
+      { title: "แฟนตอบแชทไว แต่ไม่ตามจิก", category: "รัก", slots: 1, startPrice: 7 },
+      { title: "โสดแบบรวย สบายใจ และนอนเต็มอิ่ม", category: "ตัวตน", slots: 1, startPrice: 10 },
       { title: "คนรักที่ซัพพอร์ตความฝัน ไม่ดับไฟเรา", category: "รัก", slots: 1, startPrice: 12 },
-      { title: "เพื่อนแท้ 3 คนที่ไม่หายตอนลำบาก", category: "เพื่อน", slots: 3, startPrice: 8 },
-      { title: "ครอบครัวเข้าใจ ไม่ถามซ้ำว่าโตไปจะเป็นอะไร", category: "บ้าน", slots: 2, startPrice: 10 },
-      { title: "มูฟออนได้ไว ไม่วนดู story เขา", category: "ใจ", slots: 2, startPrice: 6 }
+      { title: "เพื่อนแท้ 3 คนที่ไม่หายตอนลำบาก", category: "เพื่อน", slots: 1, startPrice: 8 },
+      { title: "ครอบครัวเข้าใจ ไม่ถามซ้ำว่าโตไปจะเป็นอะไร", category: "บ้าน", slots: 1, startPrice: 10 },
+      { title: "มูฟออนได้ไว ไม่วนดู story เขา", category: "ใจ", slots: 1, startPrice: 6 }
     ]
   },
   {
@@ -42,14 +42,14 @@ const templates = [
     startingMoney: 120,
     roundSeconds: 40,
     items: [
-      { title: "งานที่รัก แต่รายได้ช่วงแรกไม่สูง", category: "อาชีพ", slots: 2, startPrice: 12 },
+      { title: "งานที่รัก แต่รายได้ช่วงแรกไม่สูง", category: "อาชีพ", slots: 1, startPrice: 12 },
       { title: "เงินเดือนสูง แต่เวลาว่างน้อย", category: "เงิน", slots: 1, startPrice: 12 },
-      { title: "อยู่ใกล้ครอบครัว แต่โอกาสงานน้อยลง", category: "บ้าน", slots: 2, startPrice: 10 },
+      { title: "อยู่ใกล้ครอบครัว แต่โอกาสงานน้อยลง", category: "บ้าน", slots: 1, startPrice: 10 },
       { title: "ได้ทุนเรียนต่อ แต่ต้องย้ายไกลบ้าน", category: "เรียน", slots: 1, startPrice: 14 },
       { title: "มีชื่อเสียง แต่ถูกจับตามองตลอด", category: "สังคม", slots: 1, startPrice: 10 },
-      { title: "ชีวิตสมดุล ไม่ burnout ง่าย", category: "ใจ", slots: 2, startPrice: 14 },
-      { title: "กล้าเป็นตัวเองแม้คนอื่นไม่เข้าใจ", category: "ตัวตน", slots: 3, startPrice: 9 },
-      { title: "มีวินัยจนทำฝันใหญ่สำเร็จ", category: "ทักษะ", slots: 2, startPrice: 12 }
+      { title: "ชีวิตสมดุล ไม่ burnout ง่าย", category: "ใจ", slots: 1, startPrice: 14 },
+      { title: "กล้าเป็นตัวเองแม้คนอื่นไม่เข้าใจ", category: "ตัวตน", slots: 1, startPrice: 9 },
+      { title: "มีวินัยจนทำฝันใหญ่สำเร็จ", category: "ทักษะ", slots: 1, startPrice: 12 }
     ]
   }
 ];
@@ -233,6 +233,16 @@ function finalizeExpired(room) {
   return false;
 }
 
+function applyBidOvertime(room) {
+  if (!room.endsAt) return false;
+  const remainingMs = room.endsAt - Date.now();
+  if (remainingMs <= 3000) {
+    room.endsAt = Date.now() + 5000;
+    return true;
+  }
+  return false;
+}
+
 function routeParts(req) {
   if (Array.isArray(req.query?.path)) return req.query.path;
   if (typeof req.query?.path === "string") return [req.query.path];
@@ -356,6 +366,7 @@ module.exports = async function handler(req, res) {
           amount,
           createdAt: Date.now()
         });
+        applyBidOvertime(room);
         await saveRoom(room);
         return json(res, 200, publicState(room));
       }

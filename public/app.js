@@ -40,7 +40,11 @@ async function api(path, options = {}) {
     body: options.body ? JSON.stringify(options.body) : undefined
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "เกิดข้อผิดพลาด");
+  if (!response.ok) {
+    const error = new Error(data.error || "เกิดข้อผิดพลาด");
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 
@@ -75,6 +79,11 @@ async function pollRoom(code = state.code) {
     state.error = "";
     render();
   } catch (error) {
+    if (state.room?.code === code && error.status === 404) {
+      state.error = "กำลังเชื่อมต่อห้องใหม่อีกครั้ง";
+      render();
+      return;
+    }
     state.error = error.message;
     render();
   }
