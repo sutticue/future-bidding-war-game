@@ -57,10 +57,31 @@ const templates = [
 const memoryRooms = globalThis.__futureBiddingWarRooms || new Map();
 globalThis.__futureBiddingWarRooms = memoryRooms;
 
+const REDIS_REST_URL_KEYS = [
+  "UPSTASH_REDIS_REST_URL",
+  "KV_REST_API_URL",
+  "REDIS_REST_API_URL"
+];
+
+const REDIS_REST_TOKEN_KEYS = [
+  "UPSTASH_REDIS_REST_TOKEN",
+  "KV_REST_API_TOKEN",
+  "REDIS_REST_API_TOKEN",
+  "KV_REST_API_READ_ONLY_TOKEN"
+];
+
+function firstEnv(keys) {
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+    if (value) return { key, value };
+  }
+  return null;
+}
+
 function redisConfig() {
-  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
-  return url && token ? { url, token } : null;
+  const url = firstEnv(REDIS_REST_URL_KEYS);
+  const token = firstEnv(REDIS_REST_TOKEN_KEYS);
+  return url && token ? { url: url.value, token: token.value, urlKey: url.key, tokenKey: token.key } : null;
 }
 
 async function redis(command, ...args) {
@@ -281,11 +302,15 @@ module.exports = async function handler(req, res) {
       return json(res, 200, {
         storage: config ? "redis" : "memory",
         redisOk,
+        selectedEnv: config ? { urlKey: config.urlKey, tokenKey: config.tokenKey } : null,
         env: {
           hasUpstashUrl: Boolean(process.env.UPSTASH_REDIS_REST_URL),
           hasUpstashToken: Boolean(process.env.UPSTASH_REDIS_REST_TOKEN),
           hasKvUrl: Boolean(process.env.KV_REST_API_URL),
-          hasKvToken: Boolean(process.env.KV_REST_API_TOKEN)
+          hasKvToken: Boolean(process.env.KV_REST_API_TOKEN),
+          hasKvReadOnlyToken: Boolean(process.env.KV_REST_API_READ_ONLY_TOKEN),
+          hasRedisRestUrl: Boolean(process.env.REDIS_REST_API_URL),
+          hasRedisRestToken: Boolean(process.env.REDIS_REST_API_TOKEN)
         }
       });
     }
