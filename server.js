@@ -117,7 +117,8 @@ function publicState(room) {
     })),
     bids: room.bids,
     history: room.history,
-    endsAt: room.endsAt
+    endsAt: room.endsAt,
+    remainingMs: room.remainingMs
   };
 }
 
@@ -155,6 +156,7 @@ function makeRoom(payload) {
     bids: [],
     history: [],
     endsAt: null,
+    remainingMs: null,
     timer: null
   };
   rooms.set(code, room);
@@ -162,7 +164,7 @@ function makeRoom(payload) {
 }
 
 function finishRound(room) {
-  if (room.status !== "bidding") return;
+  if (room.status !== "bidding" && room.status !== "paused") return;
   const item = room.items[room.currentIndex];
   const seen = new Set();
   const winners = room.bids
@@ -192,6 +194,7 @@ function finishRound(room) {
 
   room.status = room.currentIndex >= room.items.length - 1 ? "finished" : "round-ended";
   room.endsAt = null;
+  room.remainingMs = null;
   room.bids = [];
   clearTimeout(room.timer);
   room.timer = null;
@@ -239,6 +242,7 @@ async function route(req, res) {
 
     if (req.method === "POST" && action === "join") {
       const body = await readBody(req);
+      if (room.status === "closed") return send(res, 400, { error: "ห้องนี้ถูกปิดแล้ว" });
       const id = crypto.randomUUID();
       const player = {
         id,
@@ -257,6 +261,8 @@ async function route(req, res) {
       room.currentIndex = -1;
       room.history = [];
       room.bids = [];
+      room.endsAt = null;
+      room.remainingMs = null;
       for (const player of room.players.values()) {
         player.money = room.settings.startingMoney;
         player.wins = [];
@@ -272,7 +278,41 @@ async function route(req, res) {
       room.status = "bidding";
       room.bids = [];
       room.endsAt = Date.now() + room.settings.roundSeconds * 1000;
+      room.remainingMs = null;
       room.timer = setTimeout(() => finishRound(room), room.settings.roundSeconds * 1000);
+      broadcast(code);
+      return send(res, 200, publicState(room));
+    }
+
+    if (req.method === "POST" && action === "pause") {
+      if (room.status !== "bidding") return send(res, 400, { error: "หยุดได้เฉพาะตอนเปิดประมูล" });
+      room.remainingMs = Math.max(0, room.endsAt - Date.now());
+      room.status = "paused";
+      room.endsAt = null;
+      clearTimeout(room.timer);
+      room.timer = null;
+      broadcast(code);
+      return send(res, 200, publicState(room));
+    }
+
+    if (req.method === "POST" && action === "resume") {
+      if (room.status !== "paused") return send(res, 400, { error: "ยังไม่ได้หยุดเกม" });
+      const remainingMs = Math.max(1000, room.remainingMs || room.settings.roundSeconds * 1000);
+      room.status = "bidding";
+      room.endsAt = Date.now() + remainingMs;
+      room.remainingMs = null;
+      clearTimeout(room.timer);
+      room.timer = setTimeout(() => finishRound(room), remainingMs);
+      broadcast(code);
+      return send(res, 200, publicState(room));
+    }
+
+    if (req.method === "POST" && action === "close") {
+      room.status = "closed";
+      room.endsAt = null;
+      room.remainingMs = null;
+      clearTimeout(room.timer);
+      room.timer = null;
       broadcast(code);
       return send(res, 200, publicState(room));
     }

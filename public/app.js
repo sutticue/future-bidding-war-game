@@ -18,7 +18,7 @@ setInterval(() => {
 }, 1000);
 
 function money(value) {
-  return `${value} เหรียญ`;
+  return `${Number(value || 0).toLocaleString("th-TH")} เหรียญ`;
 }
 
 function html(strings, ...values) {
@@ -106,6 +106,26 @@ function topBids() {
 function secondsLeft() {
   if (!state.room?.endsAt) return 0;
   return Math.max(0, Math.ceil((state.room.endsAt - state.tick) / 1000));
+}
+
+function bidStep(room = state.room) {
+  const base = Number(room?.settings?.startingMoney || 100);
+  if (base >= 1_000_000) return 10_000;
+  if (base >= 100_000) return 1_000;
+  if (base >= 10_000) return 500;
+  if (base >= 1_000) return 100;
+  if (base >= 200) return 10;
+  return 1;
+}
+
+function roundUpToStep(value, step) {
+  return Math.ceil(value / step) * step;
+}
+
+function nextBidAmount(current, leading, me) {
+  const step = bidStep();
+  const threshold = leading.length >= current.slots ? leading[current.slots - 1].amount + step : current.startPrice;
+  return Math.min(me.money, Math.max(current.startPrice, roundUpToStep(threshold, step)));
 }
 
 function persona(wins) {
@@ -296,10 +316,13 @@ function renderRoom() {
       </aside>
 
       <section class="auction">
+        ${teacherControlBar(isTeacher)}
         ${room.status === "lobby" ? lobbyView(isTeacher) : ""}
         ${room.status === "round-ended" ? roundEndedView(isTeacher) : ""}
         ${room.status === "bidding" ? biddingView(isTeacher, current, bids, me) : ""}
+        ${room.status === "paused" ? pausedView(isTeacher, current, bids, me) : ""}
         ${room.status === "finished" ? resultsView(isTeacher) : ""}
+        ${room.status === "closed" ? closedView() : ""}
       </section>
 
       <aside class="history">
@@ -313,6 +336,19 @@ function renderRoom() {
       </aside>
     </section>
   `);
+}
+
+function teacherControlBar(isTeacher) {
+  if (!isTeacher || !state.room || state.room.status === "finished" || state.room.status === "closed") return "";
+  const status = state.room.status;
+  return html`
+    <div class="teacher-controls">
+      ${status === "bidding" ? `<button class="ghost" data-action="pause-game">หยุดเกม</button>` : ""}
+      ${status === "paused" ? `<button class="ghost" data-action="resume-game">เล่นต่อ</button>` : ""}
+      ${(status === "bidding" || status === "paused") ? `<button class="ghost" data-action="finish-round">ปิดประมูลรอบนี้</button>` : ""}
+      <button class="ghost danger" data-action="close-room">ปิดห้อง</button>
+    </div>
+  `;
 }
 
 function lobbyView(isTeacher) {
@@ -359,27 +395,70 @@ function biddingView(isTeacher, current, bids, me) {
       </div>
 
       ${!isTeacher && me ? studentBidForm(me, current, leading) : ""}
-      ${isTeacher ? `<button class="ghost strong" data-action="finish-round">ปิดประมูลรอบนี้</button>` : ""}
     </div>
   `;
 }
 
 function studentBidForm(me, current, leading) {
-  const suggested = Math.max(
-    current.startPrice,
-    leading.length ? Math.min(me.money, leading[leading.length - 1].amount + 1) : current.startPrice
-  );
+  const step = bidStep();
+  const suggested = nextBidAmount(current, leading, me);
+  const options = [suggested, suggested + step, suggested + (step * 3), suggested + (step * 10)]
+    .filter(amount => amount <= me.money)
+    .filter((amount, index, list) => list.indexOf(amount) === index);
   return html`
-    <form class="bid-form" id="bidForm">
+    <div class="bid-form">
       <div>
         <span>เงินของฉัน</span>
         <strong>${money(me.money)}</strong>
       </div>
-      <label>จำนวนที่ bid
-        <input name="amount" type="number" min="${current.startPrice}" max="${me.money}" value="${suggested}">
-      </label>
-      <button class="primary" type="submit" ${me.money < current.startPrice ? "disabled" : ""}>Bid เลย</button>
-    </form>
+      <div>
+        <span>เพิ่มทีละ</span>
+        <strong>${money(step)}</strong>
+      </div>
+      <div class="bid-buttons">
+        ${options.map((amount, index) => `
+          <button class="${index === 0 ? "primary" : "ghost"}" type="button" data-bid-amount="${amount}" ${me.money < current.startPrice ? "disabled" : ""}>
+            Bid ${money(amount)}
+          </button>
+        `).join("")}
+        ${me.money >= current.startPrice ? `<button class="ghost" type="button" data-bid-amount="${me.money}">หมดหน้าตัก</button>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function pausedView(isTeacher, current, bids, me) {
+  const leading = bids.slice(0, current.slots);
+  return html`
+    <div class="stage bid-stage paused-stage">
+      <div class="timer pause-timer">พัก</div>
+      <p class="eyebrow">${escapeText(current.category)} • หยุดเกมชั่วคราว</p>
+      <h2>${escapeText(current.title)}</h2>
+      <p>${isTeacher ? "กดเล่นต่อเพื่อให้เวลาวิ่งต่อจากจุดเดิม" : "ครูหยุดเกมไว้ชั่วคราว รอครูกดเล่นต่อ"}</p>
+
+      <div class="leaderboard">
+        <h3>อันดับ bid ตอนนี้</h3>
+        ${bids.map((bid, index) => `
+          <div class="bid ${index < current.slots ? "winning" : ""}">
+            <span>${index + 1}. ${state.room.settings.anonymousBids && !isTeacher ? "ผู้กล้าปริศนา" : escapeText(bid.playerName)}</span>
+            <strong>${money(bid.amount)}</strong>
+          </div>
+        `).join("") || `<p class="muted">ยังไม่มีใคร bid</p>`}
+      </div>
+
+      ${!isTeacher && me ? `<div class="waiting">หยุดเกมอยู่ ยัง bid ไม่ได้</div>` : ""}
+    </div>
+  `;
+}
+
+function closedView() {
+  return html`
+    <div class="stage lobby-stage">
+      <p class="eyebrow">Closed</p>
+      <h2>ห้องนี้ปิดแล้ว</h2>
+      <p>ครูปิดห้องกิจกรรมแล้ว นักเรียนจะเข้าร่วมหรือ bid ต่อไม่ได้</p>
+      ${state.role === "teacher" ? `<button class="ghost" data-action="teacher">สร้างห้องใหม่</button>` : `<div class="waiting">กิจกรรมจบแล้ว</div>`}
+    </div>
   `;
 }
 
@@ -428,40 +507,68 @@ document.addEventListener("click", async event => {
     target.closest(".item-row").remove();
     return;
   }
+  if (target.dataset.bidAmount) {
+    try {
+      await api(`/api/rooms/${state.room.code}/bid`, {
+        method: "POST",
+        body: { playerId: state.playerId, amount: Number(target.dataset.bidAmount) }
+      });
+    } catch (error) {
+      state.error = error.message;
+      render();
+    }
+    return;
+  }
   const action = target.dataset.action;
   if (!action) return;
 
-  if (action === "home") {
-    disconnect();
-    state.role = "";
-    state.room = null;
-    state.code = "";
-    updateUrl("", "");
+  try {
+    if (action === "home") {
+      disconnect();
+      state.role = "";
+      state.room = null;
+      state.code = "";
+      updateUrl("", "");
+      render();
+    }
+    if (action === "teacher") {
+      state.role = "teacher";
+      state.room = null;
+      updateUrl("teacher", "");
+      render();
+    }
+    if (action === "student") {
+      state.role = "student";
+      state.room = null;
+      updateUrl("student", state.code);
+      render();
+    }
+    if (action === "add-item") {
+      document.querySelector("#itemsRows").insertAdjacentHTML("beforeend", itemRow({ title: "", category: "อนาคต", slots: 1, startPrice: 5 }));
+    }
+    if (action === "start-game") {
+      await api(`/api/rooms/${state.room.code}/start`, { method: "POST" });
+    }
+    if (action === "next-round") {
+      await api(`/api/rooms/${state.room.code}/next`, { method: "POST" });
+    }
+    if (action === "finish-round") {
+      await api(`/api/rooms/${state.room.code}/finish`, { method: "POST" });
+    }
+    if (action === "pause-game") {
+      await api(`/api/rooms/${state.room.code}/pause`, { method: "POST" });
+    }
+    if (action === "resume-game") {
+      await api(`/api/rooms/${state.room.code}/resume`, { method: "POST" });
+    }
+    if (action === "close-room") {
+      if (confirm("ปิดห้องนี้เลยไหม? นักเรียนจะเข้าร่วมหรือ bid ต่อไม่ได้")) {
+        await api(`/api/rooms/${state.room.code}/close`, { method: "POST" });
+      }
+    }
+  } catch (error) {
+    state.error = error.message;
     render();
-  }
-  if (action === "teacher") {
-    state.role = "teacher";
-    state.room = null;
-    updateUrl("teacher", "");
-    render();
-  }
-  if (action === "student") {
-    state.role = "student";
-    state.room = null;
-    updateUrl("student", state.code);
-    render();
-  }
-  if (action === "add-item") {
-    document.querySelector("#itemsRows").insertAdjacentHTML("beforeend", itemRow({ title: "", category: "อนาคต", slots: 1, startPrice: 5 }));
-  }
-  if (action === "start-game") {
-    await api(`/api/rooms/${state.room.code}/start`, { method: "POST" });
-  }
-  if (action === "next-round") {
-    await api(`/api/rooms/${state.room.code}/next`, { method: "POST" });
-  }
-  if (action === "finish-round") {
-    await api(`/api/rooms/${state.room.code}/finish`, { method: "POST" });
   }
 });
 
@@ -512,14 +619,6 @@ document.addEventListener("submit", async event => {
       state.code = code;
       updateUrl("student", code);
       connect(code);
-    }
-
-    if (event.target.id === "bidForm") {
-      const form = new FormData(event.target);
-      await api(`/api/rooms/${state.room.code}/bid`, {
-        method: "POST",
-        body: { playerId: state.playerId, amount: Number(form.get("amount")) }
-      });
     }
   } catch (error) {
     state.error = error.message;
