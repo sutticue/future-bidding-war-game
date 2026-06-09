@@ -1,0 +1,12 @@
+{
+  "name": "future-bidding-war",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Classroom future auction game for guidance activities.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

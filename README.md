@@ -1,0 +1,75 @@
+# ประมูลอนาคต
+
+เว็บแอพกิจกรรมแนะแนวแบบ bidding war สำหรับเล่นในห้องเรียน ครูสร้างห้อง นักเรียนเข้าด้วยรหัสห้อง แล้ว bid อนาคตที่อยากได้จากมือถือหรือคอมเครื่องอื่นในวง LAN เดียวกัน
+
+## เปิดใช้งาน
+
+```bash
+npm start
+```
+
+จากนั้นเปิด:
+
+```text
+http://localhost:3010
+```
+
+ถ้าจะให้นักเรียนเข้าจากมือถือ ให้เปิดด้วย IP เครื่องครู เช่น:
+
+```text
+http://192.168.1.25:3010
+```
+
+## สิ่งที่มีในเวอร์ชันแรก
+
+- ครูสร้างห้องและเลือก template
+- Template สายฮา, ความรัก, trade-off ชีวิตจริง
+- ครูปรับเงินเริ่มต้น เวลา bid และรายการประมูลเองได้
+- นักเรียน join ด้วยชื่อเล่นและรหัสห้อง
+- ประมูลพร้อมกันแบบ real-time
+- ครูจบรอบเองหรือรอเวลา
+- สรุปผู้ชนะ รายการที่ได้ เงินเหลือ และ persona แบบขำ ๆ หลังจบเกม
+
+ข้อมูลห้องเก็บใน memory ถ้าปิด server ห้องจะหาย เหมาะสำหรับใช้กิจกรรมสดในคาบเรียน
+
+## Deploy แบบแนะนำ
+
+### ทางเลือก 1: Vercel + Upstash Redis
+
+เหมาะถ้าอยากให้มี URL กลาง เปิดจากที่ไหนก็ได้ และต่อยอดผ่าน GitHub/Vercel ง่าย
+
+1. เอาโฟลเดอร์ `future-bidding-war` ขึ้น GitHub
+2. สร้างโปรเจกต์ใหม่ใน Vercel แล้วเลือก root directory เป็น `future-bidding-war`
+3. สร้าง Redis database ใน Upstash
+4. ตั้ง Environment Variables ใน Vercel:
+
+```text
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
+```
+
+5. Deploy
+
+บน Vercel แอพจะใช้ API ใน `api/[...path].js` และเก็บ state ห้องไว้ใน Redis 12 ชั่วโมงต่อห้อง หน้าเว็บใช้ polling ประมาณทุก 1.2 วินาทีเพื่อให้ทำงานได้บน serverless
+
+### ทางเลือก 2: Railway / Render / VPS
+
+เหมาะถ้าอยากง่ายสุดและไม่อยากต่อ Redis ตอนเริ่มต้น
+
+ใช้คำสั่ง start:
+
+```bash
+npm start
+```
+
+แพลตฟอร์มกลุ่มนี้รัน Node server ค้างได้ จึงใช้ `server.js` แบบ local ได้เลย แต่ข้อมูลยังเป็น memory ถ้า instance restart ห้องจะหาย
+
+## โครงสร้าง
+
+```text
+future-bidding-war/
+  api/[...path].js      # API สำหรับ Vercel serverless + Upstash Redis
+  public/               # หน้าเว็บ static
+  server.js             # local/Railway/Render Node server
+  vercel.json           # config สำหรับ Vercel
+```
