@@ -20,6 +20,8 @@ http://localhost:3010
 http://192.168.1.25:3010
 ```
 
+บน Vercel ให้ใช้ production URL เดียวกันเสมอ เช่น `https://future-bidding-war-game.vercel.app` อย่าใช้ preview deployment URL แบบ `future-bidding-war-game-xxxx.vercel.app` ในห้องเรียน เพราะอาจทำให้ครูกับนักเรียนอยู่คนละ deployment ได้
+
 ## สิ่งที่มีในเวอร์ชันแรก
 
 - ครูสร้างห้องและเลือก template

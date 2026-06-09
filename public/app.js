@@ -1,4 +1,5 @@
 const app = document.querySelector("#app");
+const CANONICAL_HOST = "future-bidding-war-game.vercel.app";
 
 const state = {
   templates: [],
@@ -12,6 +13,19 @@ const state = {
   pollFailures: 0,
   tick: Date.now()
 };
+
+function canonicalOrigin() {
+  if (location.hostname.endsWith(".vercel.app")) return `https://${CANONICAL_HOST}`;
+  return location.origin;
+}
+
+function redirectPreviewDeployment() {
+  const isVercel = location.hostname.endsWith(".vercel.app");
+  const isCanonical = location.hostname === CANONICAL_HOST;
+  if (!isVercel || isCanonical) return false;
+  location.replace(`${canonicalOrigin()}${location.pathname}${location.search}${location.hash}`);
+  return true;
+}
 
 setInterval(() => {
   state.tick = Date.now();
@@ -324,7 +338,7 @@ function renderRoom() {
   const current = room.currentItem;
   const me = player();
   const bids = topBids();
-  const joinUrl = `${location.origin}${location.pathname}?role=student&room=${room.code}`;
+  const joinUrl = `${canonicalOrigin()}${location.pathname}?role=student&room=${room.code}`;
   const stage = roomStageView(isTeacher, current, bids, me);
 
   if (!isTeacher) {
@@ -721,7 +735,9 @@ async function boot() {
   render();
 }
 
-boot().catch(error => {
-  state.error = error.message;
-  render();
-});
+if (!redirectPreviewDeployment()) {
+  boot().catch(error => {
+    state.error = error.message;
+    render();
+  });
+}
