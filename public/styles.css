@@ -333,6 +333,83 @@ select {
   align-items: start;
 }
 
+.host-layout,
+.student-play {
+  display: grid;
+  gap: 14px;
+}
+
+.host-header {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.host-code {
+  margin-bottom: 0;
+}
+
+.host-summary,
+.host-panel {
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.host-summary h2 {
+  margin-bottom: 8px;
+}
+
+.host-stage-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+.players-panel {
+  max-height: 560px;
+  overflow: auto;
+}
+
+.history-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.student-play {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.student-topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 6px 6px 0 rgba(29, 23, 16, 0.22);
+}
+
+.student-topbar span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 900;
+}
+
+.student-topbar strong {
+  white-space: nowrap;
+}
+
 .scoreboard,
 .history,
 .stage {
@@ -456,6 +533,26 @@ select {
   margin-top: 16px;
 }
 
+.student-status {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  background: #b7f3df;
+}
+
+.student-status span,
+.student-status small {
+  font-weight: 900;
+}
+
+.student-status strong {
+  font-size: clamp(2rem, 10vw, 4.4rem);
+  line-height: 1;
+}
+
 .bid-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -545,6 +642,8 @@ select {
   .hero,
   .choice-grid,
   .room-grid,
+  .host-header,
+  .host-stage-grid,
   .two-cols,
   .bid-form {
     grid-template-columns: 1fr;
@@ -600,6 +699,11 @@ select {
     gap: 10px;
     margin-bottom: 10px;
     padding: 8px 0 0;
+  }
+
+  .student-play + .hero,
+  body:has(.student-play) .hero {
+    display: none;
   }
 
   h1 {
@@ -689,6 +793,10 @@ select {
 
   .stage {
     min-height: auto;
+  }
+
+  .student-play .stage {
+    min-height: calc(100vh - 118px);
   }
 
   .lobby-stage,

@@ -325,50 +325,81 @@ function renderRoom() {
   const me = player();
   const bids = topBids();
   const joinUrl = `${location.origin}${location.pathname}?role=student&room=${room.code}`;
+  const stage = roomStageView(isTeacher, current, bids, me);
+
+  if (!isTeacher) {
+    renderShell(html`
+      <section class="student-play">
+        <div class="student-topbar">
+          <span>${escapeText(room.settings.title)}</span>
+          <strong>${me ? money(me.money) : "ยังไม่ได้เข้าร่วม"}</strong>
+        </div>
+        ${stage}
+      </section>
+    `);
+    return;
+  }
 
   renderShell(html`
-    <section class="room-grid">
-      <aside class="scoreboard">
-        <div class="code-box">
+    <section class="host-layout">
+      <header class="host-header">
+        <div class="code-box host-code">
           <span>รหัสห้อง</span>
           <strong>${room.code}</strong>
-          <small>${isTeacher ? escapeText(joinUrl) : escapeText(room.settings.title)}</small>
+          <small>${escapeText(joinUrl)}</small>
         </div>
+        <div class="host-summary">
+          <p class="eyebrow">Host Console</p>
+          <h2>${escapeText(room.settings.title)}</h2>
+          <p>${room.players.length} ผู้เล่น • ${room.history.length}/${room.items.length} รายการจบแล้ว</p>
+        </div>
+      </header>
 
-        <div class="players">
+      ${teacherControlBar(true)}
+
+      <section class="host-stage-grid">
+        <section class="auction">
+          ${stage}
+        </section>
+
+        <aside class="host-panel players-panel">
           <div class="section-head compact">
             <h3>ผู้เล่น ${room.players.length} คน</h3>
           </div>
           ${room.players.map(item => `
-            <div class="player ${item.id === state.playerId ? "me" : ""}">
+            <div class="player">
               <span>${escapeText(item.name)}</span>
               <strong>${money(item.money)}</strong>
             </div>
           `).join("") || `<p class="muted">รอนักเรียนเข้าห้อง</p>`}
-        </div>
-      </aside>
-
-      <section class="auction">
-        ${teacherControlBar(isTeacher)}
-        ${room.status === "lobby" ? lobbyView(isTeacher) : ""}
-        ${room.status === "round-ended" ? roundEndedView(isTeacher) : ""}
-        ${room.status === "bidding" ? biddingView(isTeacher, current, bids, me) : ""}
-        ${room.status === "paused" ? pausedView(isTeacher, current, bids, me) : ""}
-        ${room.status === "finished" ? resultsView(isTeacher) : ""}
-        ${room.status === "closed" ? closedView() : ""}
+        </aside>
       </section>
 
-      <aside class="history">
+      <section class="host-panel history-panel">
         <h3>ผลที่ผ่านมา</h3>
-        ${room.history.map(entry => `
-          <div class="history-item">
-            <strong>${escapeText(entry.item.title)}</strong>
-            <small>${entry.winners.length ? entry.winners.map(win => `${escapeText(win.name)} ${money(win.amount)}`).join(" / ") : "ไม่มีผู้ bid"}</small>
-          </div>
-        `).join("") || `<p class="muted">ยังไม่มีรอบที่จบ</p>`}
-      </aside>
+        <div class="history-strip">
+          ${room.history.map(entry => `
+            <div class="history-item">
+              <strong>${escapeText(entry.item.title)}</strong>
+              <small>${entry.winners.length ? entry.winners.map(win => `${escapeText(win.name)} ${money(win.amount)}`).join(" / ") : "ไม่มีผู้ bid"}</small>
+            </div>
+          `).join("") || `<p class="muted">ยังไม่มีรอบที่จบ</p>`}
+        </div>
+      </section>
     </section>
   `);
+}
+
+function roomStageView(isTeacher, current, bids, me) {
+  const room = state.room;
+  return html`
+    ${room.status === "lobby" ? lobbyView(isTeacher) : ""}
+    ${room.status === "round-ended" ? roundEndedView(isTeacher) : ""}
+    ${room.status === "bidding" ? biddingView(isTeacher, current, bids, me) : ""}
+    ${room.status === "paused" ? pausedView(isTeacher, current, bids, me) : ""}
+    ${room.status === "finished" ? resultsView(isTeacher) : ""}
+    ${room.status === "closed" ? closedView() : ""}
+  `;
 }
 
 function teacherControlBar(isTeacher) {
@@ -387,10 +418,10 @@ function teacherControlBar(isTeacher) {
 function lobbyView(isTeacher) {
   return html`
     <div class="stage lobby-stage">
-      <p class="eyebrow">Lobby</p>
+      <p class="eyebrow">${isTeacher ? "Lobby" : `Room ${escapeText(state.room.code)}`}</p>
       <h2>${escapeText(state.room.settings.title)}</h2>
-      <p>ให้นักเรียนสแกนหรือกรอกรหัสห้อง แล้วครูกดเริ่มเกมเมื่อพร้อม</p>
-      ${isTeacher ? `<button class="primary" data-action="start-game">เริ่มเกม</button>` : `<div class="waiting">รอครูเริ่มเกม</div>`}
+      <p>${isTeacher ? "ให้นักเรียนสแกนหรือกรอกรหัสห้อง แล้วครูกดเริ่มเกมเมื่อพร้อม" : "เข้าห้องแล้ว รอครูเริ่มเกม"}</p>
+      ${isTeacher ? `<button class="primary" data-action="start-game">เริ่มเกม</button>` : `<div class="waiting">รอเริ่ม</div>`}
     </div>
   `;
 }
@@ -400,8 +431,8 @@ function roundEndedView(isTeacher) {
   return html`
     <div class="stage next-stage">
       <p class="eyebrow">Next Lot</p>
-      <h2>${next ? escapeText(next.title) : "ครบทุกอนาคตแล้ว"}</h2>
-      <p>${next ? `หมวด ${escapeText(next.category)} • ชนะได้ ${next.slots} คน • เริ่ม ${money(next.startPrice)}` : "กดดูผลสรุปได้เลย"}</p>
+      <h2>${next ? (isTeacher ? escapeText(next.title) : "รอรายการถัดไป") : "ครบทุกอนาคตแล้ว"}</h2>
+      <p>${next ? (isTeacher ? `หมวด ${escapeText(next.category)} • ชนะได้ ${next.slots} คน • เริ่ม ${money(next.startPrice)}` : "ครูกำลังเตรียมเปิดประมูล") : "รอดูผลสรุป"}</p>
       ${isTeacher && next ? `<button class="primary" data-action="next-round">เปิดประมูลรายการนี้</button>` : ""}
       ${!isTeacher && next ? `<div class="waiting">รอครูเปิดรายการถัดไป</div>` : ""}
     </div>
@@ -417,7 +448,7 @@ function biddingView(isTeacher, current, bids, me) {
       <h2>${escapeText(current.title)}</h2>
       <p>ราคาเริ่ม ${money(current.startPrice)} • ถ้า all-in เต็มจำนวนเท่ากัน จะชนะร่วม</p>
 
-      <div class="leaderboard">
+      ${isTeacher ? `<div class="leaderboard">
         <h3>อันดับ bid ตอนนี้</h3>
         ${bids.map((bid, index) => `
           <div class="bid ${isWinningBid(bid, index, current) ? "winning" : ""}">
@@ -425,9 +456,21 @@ function biddingView(isTeacher, current, bids, me) {
             <strong>${money(bid.amount)}</strong>
           </div>
         `).join("") || `<p class="muted">ยังไม่มีใคร bid เป็นคนแรกไหม</p>`}
-      </div>
+      </div>` : studentBidStatus(bids, current, me)}
 
       ${!isTeacher && me ? studentBidForm(me, current, leading) : ""}
+    </div>
+  `;
+}
+
+function studentBidStatus(bids, current, me) {
+  const top = bids[0];
+  const mine = bids.find(bid => bid.playerId === me?.id);
+  return html`
+    <div class="student-status">
+      <span>ราคานำตอนนี้</span>
+      <strong>${top ? money(top.amount) : money(current.startPrice)}</strong>
+      <small>${mine ? `bid ล่าสุดของฉัน ${money(mine.amount)}` : "ยังไม่ได้ bid รายการนี้"}</small>
     </div>
   `;
 }
@@ -469,7 +512,7 @@ function pausedView(isTeacher, current, bids, me) {
       <h2>${escapeText(current.title)}</h2>
       <p>${isTeacher ? "กดเล่นต่อเพื่อให้เวลาวิ่งต่อจากจุดเดิม" : "ครูหยุดเกมไว้ชั่วคราว รอครูกดเล่นต่อ"}</p>
 
-      <div class="leaderboard">
+      ${isTeacher ? `<div class="leaderboard">
         <h3>อันดับ bid ตอนนี้</h3>
         ${bids.map((bid, index) => `
           <div class="bid ${isWinningBid(bid, index, current) ? "winning" : ""}">
@@ -477,7 +520,7 @@ function pausedView(isTeacher, current, bids, me) {
             <strong>${money(bid.amount)}</strong>
           </div>
         `).join("") || `<p class="muted">ยังไม่มีใคร bid</p>`}
-      </div>
+      </div>` : studentBidStatus(bids, current, me)}
 
       ${!isTeacher && me ? `<div class="waiting">หยุดเกมอยู่ ยัง bid ไม่ได้</div>` : ""}
     </div>
