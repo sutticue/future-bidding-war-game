@@ -163,19 +163,29 @@ function makeRoom(payload) {
   return room;
 }
 
-function finishRound(room) {
-  if (room.status !== "bidding" && room.status !== "paused") return;
-  const item = room.items[room.currentIndex];
+function winningBids(room, item) {
   const seen = new Set();
-  const winners = room.bids
+  const ranked = room.bids
     .slice()
     .sort((a, b) => b.amount - a.amount || a.createdAt - b.createdAt)
     .filter(bid => {
       if (seen.has(bid.playerId)) return false;
       seen.add(bid.playerId);
       return true;
-    })
-    .slice(0, item.slots);
+    });
+  const baseWinners = ranked.slice(0, item.slots);
+  const cutoff = baseWinners[baseWinners.length - 1]?.amount;
+  if (!cutoff || cutoff < room.settings.startingMoney) return baseWinners;
+
+  const baseIds = new Set(baseWinners.map(bid => bid.playerId));
+  const tiedAllIns = ranked.filter(bid => !baseIds.has(bid.playerId) && bid.amount === cutoff);
+  return baseWinners.concat(tiedAllIns);
+}
+
+function finishRound(room) {
+  if (room.status !== "bidding" && room.status !== "paused") return;
+  const item = room.items[room.currentIndex];
+  const winners = winningBids(room, item);
 
   const resolvedWinners = winners.map(bid => {
     const player = room.players.get(bid.playerId);

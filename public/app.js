@@ -112,6 +112,12 @@ function topBids() {
     });
 }
 
+function isWinningBid(bid, index, item) {
+  if (index < item.slots) return true;
+  const cutoff = topBids()[item.slots - 1]?.amount;
+  return Boolean(cutoff && cutoff >= state.room.settings.startingMoney && bid.amount === cutoff);
+}
+
 function secondsLeft() {
   if (!state.room?.endsAt) return 0;
   return Math.max(0, Math.ceil((state.room.endsAt - state.tick) / 1000));
@@ -391,12 +397,12 @@ function biddingView(isTeacher, current, bids, me) {
       <div class="timer">${secondsLeft()}s</div>
       <p class="eyebrow">${escapeText(current.category)} • ${current.slots} winner${current.slots > 1 ? "s" : ""}</p>
       <h2>${escapeText(current.title)}</h2>
-      <p>ราคาเริ่ม ${money(current.startPrice)}</p>
+      <p>ราคาเริ่ม ${money(current.startPrice)} • ถ้า all-in เต็มจำนวนเท่ากัน จะชนะร่วม</p>
 
       <div class="leaderboard">
         <h3>อันดับ bid ตอนนี้</h3>
         ${bids.map((bid, index) => `
-          <div class="bid ${index < current.slots ? "winning" : ""}">
+          <div class="bid ${isWinningBid(bid, index, current) ? "winning" : ""}">
             <span>${index + 1}. ${state.room.settings.anonymousBids && !isTeacher ? "ผู้กล้าปริศนา" : escapeText(bid.playerName)}</span>
             <strong>${money(bid.amount)}</strong>
           </div>
@@ -448,7 +454,7 @@ function pausedView(isTeacher, current, bids, me) {
       <div class="leaderboard">
         <h3>อันดับ bid ตอนนี้</h3>
         ${bids.map((bid, index) => `
-          <div class="bid ${index < current.slots ? "winning" : ""}">
+          <div class="bid ${isWinningBid(bid, index, current) ? "winning" : ""}">
             <span>${index + 1}. ${state.room.settings.anonymousBids && !isTeacher ? "ผู้กล้าปริศนา" : escapeText(bid.playerName)}</span>
             <strong>${money(bid.amount)}</strong>
           </div>
