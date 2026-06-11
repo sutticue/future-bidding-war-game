@@ -10,6 +10,7 @@ const state = {
   events: null,
   poller: null,
   error: "",
+  staleRoom: false,
   pollFailures: 0,
   tick: Date.now()
 };
@@ -65,6 +66,8 @@ async function api(path, options = {}) {
 
 function connect(code) {
   disconnect();
+  state.staleRoom = false;
+  state.pollFailures = 0;
   pollRoom(code);
   state.poller = setInterval(() => pollRoom(code), 1200);
   const canUseEvents = window.EventSource && ["localhost", "127.0.0.1"].includes(location.hostname);
@@ -88,17 +91,36 @@ function disconnect() {
   state.poller = null;
 }
 
+function stopPolling() {
+  if (state.poller) clearInterval(state.poller);
+  state.poller = null;
+  if (state.events) state.events.close();
+  state.events = null;
+}
+
+function markRoomMissing(code) {
+  stopPolling();
+  state.staleRoom = true;
+  state.error = `ห้อง ${code} ไม่อยู่บน server แล้ว อาจเป็น deploy เก่าหรือ storage ยังไม่ต่อ Redis/KV ให้สร้างห้องใหม่จากโดเมน production แล้วเช็ค /api/health ว่า storage เป็น redis`;
+  render();
+}
+
 async function pollRoom(code = state.code) {
   if (!code) return;
   try {
     state.room = await api(`/api/rooms/${code}`);
     cacheRoom(state.room);
     state.error = "";
+    state.staleRoom = false;
     state.pollFailures = 0;
     render();
   } catch (error) {
     if (state.room?.code === code) {
       state.pollFailures += 1;
+      if (error.status === 404 || state.pollFailures >= 3) {
+        markRoomMissing(code);
+        return;
+      }
       state.error = "";
       return;
     }
@@ -333,6 +355,7 @@ function renderStudentJoin() {
 
 function renderRoom() {
   if (!state.room) return renderHome();
+  if (state.staleRoom) return renderStaleRoom();
   const isTeacher = state.role === "teacher";
   const room = state.room;
   const current = room.currentItem;
@@ -400,6 +423,21 @@ function renderRoom() {
           `).join("") || `<p class="muted">ยังไม่มีรอบที่จบ</p>`}
         </div>
       </section>
+    </section>
+  `);
+}
+
+function renderStaleRoom() {
+  const code = state.room?.code || state.code;
+  renderShell(html`
+    <section class="stage lobby-stage">
+      <p class="eyebrow">Room Lost</p>
+      <h2>ห้อง ${escapeText(code)} ไม่อยู่บน server แล้ว</h2>
+      <p>หน้าเว็บหยุดต่อห้องนี้ให้แล้ว เพื่อไม่ให้ยิง API 404 ซ้ำ ๆ ถ้าเพิ่ง deploy หรือเพิ่งต่อ Upstash ให้เช็ค <code>/api/health</code> ว่า storage เป็น redis ก่อน แล้วสร้างห้องใหม่</p>
+      <div class="action-row">
+        ${state.role === "teacher" ? `<button class="primary" data-action="teacher">สร้างห้องใหม่</button>` : `<button class="primary" data-action="student">เข้าห้องใหม่</button>`}
+        <button class="ghost" data-action="home">กลับหน้าแรก</button>
+      </div>
     </section>
   `);
 }

@@ -316,6 +316,18 @@ select {
   color: #a11414;
 }
 
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.action-row .primary,
+.action-row .ghost {
+  width: auto;
+  flex: 1 1 180px;
+}
+
 .toast {
   margin-bottom: 14px;
   padding: 12px 14px;
