@@ -9,6 +9,19 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const rooms = new Map();
 const clients = new Map();
 
+const REDIS_REST_URL_KEYS = [
+  "UPSTASH_REDIS_REST_URL",
+  "KV_REST_API_URL",
+  "REDIS_REST_API_URL"
+];
+
+const REDIS_REST_TOKEN_KEYS = [
+  "UPSTASH_REDIS_REST_TOKEN",
+  "KV_REST_API_TOKEN",
+  "REDIS_REST_API_TOKEN",
+  "KV_REST_API_READ_ONLY_TOKEN"
+];
+
 const templates = [
   {
     id: "chaos-dream",
@@ -93,11 +106,91 @@ function readBody(req) {
   });
 }
 
-function roomCode() {
+function firstEnv(keys) {
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+    if (value) return { key, value };
+  }
+  return null;
+}
+
+function redisConfig() {
+  const url = firstEnv(REDIS_REST_URL_KEYS);
+  const token = firstEnv(REDIS_REST_TOKEN_KEYS);
+  return url && token ? { url: url.value, token: token.value, urlKey: url.key, tokenKey: token.key } : null;
+}
+
+async function redis(command, ...args) {
+  const config = redisConfig();
+  if (!config) return null;
+  const response = await fetch(config.url, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${config.token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify([command, ...args])
+  });
+  const data = await response.json();
+  if (!response.ok || data.error) throw new Error(data.error || "Redis error");
+  return data.result;
+}
+
+function roomKey(code) {
+  return `future-bidding-war:room:${code}`;
+}
+
+function serializeRoom(room) {
+  return {
+    ...room,
+    players: [...room.players.values()],
+    timer: null
+  };
+}
+
+function hydrateRoom(data) {
+  if (!data) return null;
+  return {
+    ...data,
+    players: new Map((data.players || []).map(player => [player.id, player])),
+    timer: null
+  };
+}
+
+async function codeExists(code) {
+  if (redisConfig()) return Boolean(await redis("EXISTS", roomKey(code)));
+  return rooms.has(code);
+}
+
+async function uniqueRoomCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
   for (let i = 0; i < 5; i += 1) code += alphabet[Math.floor(Math.random() * alphabet.length)];
-  return rooms.has(code) ? roomCode() : code;
+  return await codeExists(code) ? uniqueRoomCode() : code;
+}
+
+async function getRoom(code) {
+  const normalized = String(code || "").toUpperCase();
+  let room;
+  if (redisConfig()) {
+    const value = await redis("GET", roomKey(normalized));
+    room = hydrateRoom(value ? JSON.parse(value) : null);
+  } else {
+    room = rooms.get(normalized) || null;
+  }
+  if (room && room.status === "bidding" && room.endsAt && Date.now() >= room.endsAt) {
+    finishRound(room);
+    await saveRoom(room);
+  }
+  return room;
+}
+
+async function saveRoom(room) {
+  if (redisConfig()) {
+    await redis("SET", roomKey(room.code), JSON.stringify(serializeRoom(room)), "EX", 60 * 60 * 12);
+  } else {
+    rooms.set(room.code, room);
+  }
 }
 
 function publicState(room) {
@@ -129,10 +222,10 @@ function broadcast(code) {
   for (const res of clients.get(code) || []) res.write(payload);
 }
 
-function makeRoom(payload) {
+async function makeRoom(payload) {
   const template = templates.find(item => item.id === payload.templateId) || templates[0];
   const customItems = Array.isArray(payload.items) && payload.items.length ? payload.items : template.items;
-  const code = roomCode();
+  const code = await uniqueRoomCode();
   const room = {
     code,
     status: "lobby",
@@ -159,7 +252,7 @@ function makeRoom(payload) {
     remainingMs: null,
     timer: null
   };
-  rooms.set(code, room);
+  await saveRoom(room);
   return room;
 }
 
@@ -208,6 +301,7 @@ function finishRound(room) {
   room.bids = [];
   clearTimeout(room.timer);
   room.timer = null;
+  saveRoom(room).catch(error => console.error("Failed to save finished round", error));
   broadcast(room.code);
 }
 
@@ -247,20 +341,33 @@ async function route(req, res) {
   if (url.pathname === "/api/templates") return send(res, 200, { templates });
 
   if (url.pathname === "/api/health") {
+    const config = redisConfig();
+    let redisOk = false;
+    if (config) {
+      try {
+        redisOk = await redis("PING") === "PONG";
+      } catch {
+        redisOk = false;
+      }
+    }
     return send(res, 200, {
-      storage: "memory",
-      redisOk: false,
+      storage: config ? "redis" : "memory",
+      redisOk,
+      selectedEnv: config ? { urlKey: config.urlKey, tokenKey: config.tokenKey } : null,
       env: {
         hasUpstashUrl: Boolean(process.env.UPSTASH_REDIS_REST_URL),
         hasUpstashToken: Boolean(process.env.UPSTASH_REDIS_REST_TOKEN),
         hasKvUrl: Boolean(process.env.KV_REST_API_URL),
-        hasKvToken: Boolean(process.env.KV_REST_API_TOKEN)
+        hasKvToken: Boolean(process.env.KV_REST_API_TOKEN),
+        hasKvReadOnlyToken: Boolean(process.env.KV_REST_API_READ_ONLY_TOKEN),
+        hasRedisUrl: Boolean(process.env.REDIS_REST_API_URL),
+        hasRedisToken: Boolean(process.env.REDIS_REST_API_TOKEN)
       }
     });
   }
 
   if (url.pathname === "/api/rooms" && req.method === "POST") {
-    const room = makeRoom(await readBody(req));
+    const room = await makeRoom(await readBody(req));
     return send(res, 200, publicState(room));
   }
 
@@ -268,7 +375,7 @@ async function route(req, res) {
   if (roomMatch) {
     const code = roomMatch[1].toUpperCase();
     const action = roomMatch[2] || "";
-    const room = rooms.get(code);
+    const room = await getRoom(code);
     if (!room) return send(res, 404, { error: "ไม่พบห้องนี้" });
 
     if (req.method === "GET" && !action) return send(res, 200, publicState(room));
@@ -284,6 +391,7 @@ async function route(req, res) {
         wins: []
       };
       room.players.set(id, player);
+      await saveRoom(room);
       broadcast(code);
       return send(res, 200, { playerId: id, state: publicState(room) });
     }
@@ -300,6 +408,7 @@ async function route(req, res) {
         player.money = room.settings.startingMoney;
         player.wins = [];
       }
+      await saveRoom(room);
       broadcast(code);
       return send(res, 200, publicState(room));
     }
@@ -313,6 +422,7 @@ async function route(req, res) {
       room.endsAt = Date.now() + room.settings.roundSeconds * 1000;
       room.remainingMs = null;
       room.timer = setTimeout(() => finishRound(room), room.settings.roundSeconds * 1000);
+      await saveRoom(room);
       broadcast(code);
       return send(res, 200, publicState(room));
     }
@@ -324,6 +434,7 @@ async function route(req, res) {
       room.endsAt = null;
       clearTimeout(room.timer);
       room.timer = null;
+      await saveRoom(room);
       broadcast(code);
       return send(res, 200, publicState(room));
     }
@@ -336,6 +447,7 @@ async function route(req, res) {
       room.remainingMs = null;
       clearTimeout(room.timer);
       room.timer = setTimeout(() => finishRound(room), remainingMs);
+      await saveRoom(room);
       broadcast(code);
       return send(res, 200, publicState(room));
     }
@@ -346,12 +458,14 @@ async function route(req, res) {
       room.remainingMs = null;
       clearTimeout(room.timer);
       room.timer = null;
+      await saveRoom(room);
       broadcast(code);
       return send(res, 200, publicState(room));
     }
 
     if (req.method === "POST" && action === "finish") {
       finishRound(room);
+      await saveRoom(room);
       return send(res, 200, publicState(room));
     }
 
@@ -371,6 +485,7 @@ async function route(req, res) {
         createdAt: Date.now()
       });
       applyBidOvertime(room);
+      await saveRoom(room);
       broadcast(code);
       return send(res, 200, publicState(room));
     }
@@ -378,7 +493,7 @@ async function route(req, res) {
 
   if (url.pathname.startsWith("/events/")) {
     const code = url.pathname.split("/").pop().toUpperCase();
-    const room = rooms.get(code);
+    const room = await getRoom(code);
     if (!room) return send(res, 404, "Not found");
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
